@@ -64,4 +64,3 @@ if __name__ == "__main__":
             break
 
     env2.close()
-#mi cliff no sera migajero, directo a lo que vas
