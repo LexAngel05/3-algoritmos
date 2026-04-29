@@ -13,11 +13,23 @@ from ml26.proyectos.P01_facial_expressionsV2.dataset import get_loader
 from ml26.proyectos.P01_facial_expressionsV2.network import Network
 
 # Logging
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 from datetime import datetime, timezone
 
 
+class NoOpRun:
+    def log(self, *args, **kwargs):
+        pass
+
+
 def init_wandb(cfg):
+    if wandb is None or not hasattr(wandb, "init"):
+        print("wandb no esta disponible; entrenando sin logging en Weights & Biases.")
+        return NoOpRun()
+
     # Initialize wandb
     now_utc = datetime.now(timezone.utc)
     timestamp = now_utc.strftime("%Y-%m-%d_%H-%M-%S-%f")
@@ -66,9 +78,9 @@ def train():
     # Hyperparametros
     cfg = {
         "training": {
-            "learning_rate": 3e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
-            "n_epochs": 100, #cambio
-            "batch_size": 128, #
+            "learning_rate": 1e-4, #cambio (lo bajamos para entrenar mas suave)
+            "n_epochs": 50, #cambio
+            "batch_size": 64, #
         },
     }
     run = init_wandb(cfg)
@@ -88,13 +100,14 @@ def train():
     )
 
     # Instanciamos tu red
-    modelo = Network(input_dim=48, n_classes=7)
+    n_classes = int(np.max(train_dataset._labels)) + 1
+    modelo = Network(input_dim=train_dataset.img_size, n_classes=n_classes)
 
     # TODO: Define la funcion de costo
     criterion = nn.CrossEntropyLoss()
 
     # Define el optimizador
-    optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=1e-4) #agregue y inicialice el weightdecay
+    optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=5e-4) #agregue y ajustamos el weightdecay
 
     best_epoch_loss = np.inf
     patience = 15 #agregue la paciencia
@@ -118,7 +131,9 @@ def train():
 
         # TODO Calcula el costo promedio
         train_loss = train_loss / len(train_loader)
+        modelo.eval()
         val_loss, val_accuracy = validation_step(val_loader, modelo, criterion)
+        modelo.train()
         tqdm.write(
             f"Epoch: {epoch}, train_loss: {train_loss:.2f}, val_loss: {val_loss:.2f}, val_accuracy: {val_accuracy:.2f}%"
         )

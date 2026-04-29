@@ -31,6 +31,7 @@ EMOTIONS_MAP = {
     5: "Sorpresa",
     6: "Neutral",
 }
+DIGITS_MAP = {idx: str(idx) for idx in range(10)}
 file_path = pathlib.Path(__file__).parent.absolute()
 
 
@@ -75,26 +76,35 @@ class FER2013(Dataset):
         self.target_transform = target_transform
         self.split = split
         self.root = root
+        self.raw_img_size = self.img_size
+        self.label_map = EMOTIONS_MAP
         self.unnormalize = None
         self.transform, self.unnormalize = get_transforms(
             split=self.split, img_size=self.img_size
         )
 
         df = self._read_data()
-        _str_to_array = [
-            np.fromstring(val, dtype=int, sep=" ") for val in df["pixels"].values
-        ]
-
-        self._samples = np.array(_str_to_array)
-        if split == "test":
-            self._labels = np.empty(shape=len(self._samples))
+        if "pixels" not in df.columns and "label" in df.columns:
+            pixel_columns = [col for col in df.columns if col.startswith("pixel")]
+            self.raw_img_size = int(np.sqrt(len(pixel_columns)))
+            self.label_map = DIGITS_MAP
+            self._samples = df[pixel_columns].to_numpy(dtype=np.uint8)
+            self._labels = df["label"].values
         else:
-            self._labels = df["emotion"].values
+            _str_to_array = [
+                np.fromstring(val, dtype=int, sep=" ") for val in df["pixels"].values
+            ]
+
+            self._samples = np.array(_str_to_array)
+            if split == "test":
+                self._labels = np.empty(shape=len(self._samples))
+            else:
+                self._labels = df["emotion"].values
 
     def _read_data(self):
         base_folder = pathlib.Path(self.root) / "data"
 
-        _split = "train" if self.split == "train" or "val" else "test"
+        _split = "train" if self.split in ["train", "val"] else "test"
         file_name = f"{_split}.csv"
         data_file = base_folder / file_name
 
@@ -119,7 +129,7 @@ class FER2013(Dataset):
         _vector_img = self._samples[idx]
 
         # Pre procesamiento de la imagen
-        sample_image = _vector_img.reshape(self.img_size, self.img_size).astype("uint8")
+        sample_image = _vector_img.reshape(self.raw_img_size, self.raw_img_size).astype("uint8")
         if self.transform is not None:
             image = self.transform(sample_image)  # float32
         else:
@@ -127,7 +137,7 @@ class FER2013(Dataset):
 
         # Pre procesamiento de la etiqueta
         target = self._labels[idx]
-        emotion = EMOTIONS_MAP[target]
+        emotion = self.label_map[target]
         if self.target_transform is not None:
             target = self.target_transform(target)
 
