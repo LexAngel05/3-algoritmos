@@ -9,8 +9,8 @@ import torch.optim as optim
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from ml26.proyectos.P01_facial_expressionsV2.dataset import get_loader
-from ml26.proyectos.P01_facial_expressionsV2.network import Network
+from ml26.proyectos.P01_facial_expressionsV3.dataset import get_loader
+from ml26.proyectos.P01_facial_expressionsV3.network import Network
 
 # Logging
 import wandb

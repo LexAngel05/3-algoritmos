@@ -36,21 +36,28 @@ class Network(nn.Module):
         flatten_dim = 256 * out_dim * out_dim
 
         # TODO: Define las capas de tu red
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
+        #cambie todo esto de nuevo
+        self.conv1a = nn.Conv2d(1, 64, kernel_size=3, padding=1)
+        self.conv1b = nn.Conv2d(64, 64, kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+
+        self.conv2a = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv2b = nn.Conv2d(128, 128, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(128)
-        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+
+        self.conv3a = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.conv3b = nn.Conv2d(256, 256, kernel_size=3, padding=1)
         self.bn3 = nn.BatchNorm2d(256)
-        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
-        self.bn4 = nn.BatchNorm2d(512)
+
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.gap = nn.AdaptiveAvgPool2d(1)
+
         self.dropout1 = nn.Dropout(p=0.5)
-        self.dropout2 = nn.Dropout(p=0.4)
-        self.fc1 = nn.Linear(512, 256)
-        self.fc2 = nn.Linear(256, n_classes)
-        self.to(self.device) 
+        self.fc1 = nn.Linear(256, 128)
+        self.bn_fc = nn.BatchNorm1d(128)
+        self.dropout2 = nn.Dropout(p=0.3)
+        self.fc2 = nn.Linear(128, n_classes)
+        self.to(self.device)
 
     def calc_out_dim(self, in_dim, kernel_size, stride=1, padding=0):
         out_dim = math.floor((in_dim - kernel_size + 2 * padding) / stride) + 1
@@ -59,16 +66,22 @@ class Network(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO: Define la propagacion hacia adelante de tu red
         x = x.to(self.device)
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = self.pool(F.relu(self.bn4(self.conv4(x))))
-        x = self.gap(x)
-        x = x.view(x.size(0), -1)
-        x = self.dropout1(x)          # dropout antes de fc1
-        x = F.relu(self.fc1(x))       # fc1: 512 → 256
-        x = self.dropout2(x)          # dropout antes de fc2
-        logits = self.fc2(x)          # fc2: 256 → 7
+        x = F.relu(self.conv1a(x))
+        x = self.pool(F.relu(self.bn1(self.conv1b(x))))
+
+        x = F.relu(self.conv2a(x))
+        x = self.pool(F.relu(self.bn2(self.conv2b(x))))
+
+        x = F.relu(self.conv3a(x))
+        x = self.pool(F.relu(self.bn3(self.conv3b(x))))
+
+        x = self.gap(x)               
+        x = x.view(x.size(0), -1) 
+
+        x = self.dropout1(x)
+        x = F.relu(self.bn_fc(self.fc1(x)))   # 256 -> 128
+        x = self.dropout2(x)
+        logits = self.fc2(x)                   # 128 -> 7
         proba = F.softmax(logits, dim=1)
         return logits, proba
 
@@ -99,4 +112,5 @@ class Network(nn.Module):
         models_path = file_path / "models" / model_name
         self.load_state_dict(torch.load(models_path, map_location=self.device))
 
-#python -m ml26.proyectos.P01_facial_expressionsV2.training
+#python -m ml26.proyectos.P01_facial_expressionsV5.training
+#python -m ml26.proyectos.P01_facial_expressionsV5.network

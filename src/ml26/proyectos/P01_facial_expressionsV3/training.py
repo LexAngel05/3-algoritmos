@@ -9,8 +9,8 @@ import torch.optim as optim
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from ml26.proyectos.P01_facial_expressionsV2.dataset import get_loader
-from ml26.proyectos.P01_facial_expressionsV2.network import Network
+from ml26.proyectos.P01_facial_expressionsV3.dataset import get_loader
+from ml26.proyectos.P01_facial_expressionsV3.network import Network
 
 # Logging
 import wandb
@@ -67,10 +67,10 @@ def train():
     # Hyperparametros
     cfg = {
         "training": {
-            "learning_rate": 4e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
+            "learning_rate": 1e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
             "n_epochs": 100, #cambio
-            "batch_size": 128,
-            "weight_decay": 1e-4,
+            "batch_size": 64,
+            "weight_decay": 5e-4,
             "scheduler_patience": 6,
             "scheduler_factor": 0.4,
             "early_stopping_patience": 20,   

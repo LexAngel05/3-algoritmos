@@ -9,8 +9,8 @@ import torch.optim as optim
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from ml26.proyectos.P01_facial_expressionsV2.dataset import get_loader
-from ml26.proyectos.P01_facial_expressionsV2.network import Network
+from ml26.proyectos.P01_facial_expressionsV4.dataset import get_loader
+from ml26.proyectos.P01_facial_expressionsV4.network import Network
 
 # Logging
 import wandb
@@ -64,13 +64,13 @@ def validation_step(val_loader, net, cost_function):
 
 
 def train():
-    # Hyperparametros
+    # Hyperparametros cambiado y agregados
     cfg = {
         "training": {
-            "learning_rate": 4e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
-            "n_epochs": 100, #cambio
-            "batch_size": 128,
-            "weight_decay": 1e-4,
+            "learning_rate": 5e-5, #cambio (le subimos el laerning rate para que aprende mas rapido)
+            "n_epochs": 150, #cambio
+            "batch_size": 64,
+            "weight_decay": 5e-4,
             "scheduler_patience": 6,
             "scheduler_factor": 0.4,
             "early_stopping_patience": 20,   
@@ -99,8 +99,20 @@ def train():
     # Instanciamos tu red
     modelo = Network(input_dim=48, n_classes=7)
 
+    #aqui lo agregue para calcular class weights para balancear el dataset
+    import pandas as pd
+    import json as _json
+    _df = pd.read_csv(train_dataset.root / "data" / "train.csv")
+    _split_ids = _json.load(open(train_dataset.root / "data" / "split.json"))["train"]
+    _df = _df.iloc[_split_ids]
+    _counts = _df["emotion"].value_counts().sort_index().values
+    _weights = 1.0 / _counts
+    _weights = _weights / _weights.sum() * len(_counts)
+    class_weights = torch.tensor(_weights, dtype=torch.float).to(modelo.device)
+
+
     # TODO: Define la funcion de costo
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
 
     # Define el optimizador
     optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=weight_decay)
