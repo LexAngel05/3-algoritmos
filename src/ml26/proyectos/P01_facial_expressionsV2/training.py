@@ -13,11 +13,23 @@ from ml26.proyectos.P01_facial_expressionsV2.dataset import get_loader
 from ml26.proyectos.P01_facial_expressionsV2.network import Network
 
 # Logging
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 from datetime import datetime, timezone
 
 
+class NoOpRun:
+    def log(self, *args, **kwargs):
+        pass
+
+
 def init_wandb(cfg):
+    if wandb is None or not hasattr(wandb, "init"):
+        print("wandb no esta disponible; entrenando sin logging en Weights & Biases.")
+        return NoOpRun()
+
     # Initialize wandb
     now_utc = datetime.now(timezone.utc)
     timestamp = now_utc.strftime("%Y-%m-%d_%H-%M-%S-%f")
@@ -67,13 +79,9 @@ def train():
     # Hyperparametros
     cfg = {
         "training": {
-            "learning_rate": 4e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
+            "learning_rate": 3e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
             "n_epochs": 100, #cambio
-            "batch_size": 128,
-            "weight_decay": 1e-4,
-            "scheduler_patience": 6,
-            "scheduler_factor": 0.4,
-            "early_stopping_patience": 20,   
+            "batch_size": 128, #
         },
     }
     run = init_wandb(cfg)
@@ -97,23 +105,21 @@ def train():
     )
 
     # Instanciamos tu red
-    modelo = Network(input_dim=48, n_classes=7)
+    n_classes = int(np.max(train_dataset._labels)) + 1
+    modelo = Network(input_dim=train_dataset.img_size, n_classes=n_classes)
 
     # TODO: Define la funcion de costo
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # Define el optimizador
-    optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=scheduler_factor, patience=scheduler_patience)
-    patience = early_stopping_patience
+    optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=1e-4) #agregue y inicialice el weightdecay
 
     best_epoch_loss = np.inf
+    patience = 15 #agregue la paciencia
     epochs_without_improvement = 0 #agregue 
     for epoch in range(n_epochs):
         modelo.train() #agrege
         train_loss = 0
-        correct = 0
-        total = 0
         for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch: {epoch}")):
             batch_imgs = batch["transformed"]
             batch_labels = batch["label"]
@@ -128,6 +134,9 @@ def train():
 
             # TODO acumula el costo
             train_loss += loss.item()
+            predicted = torch.argmax(proba, dim=1)
+            train_correct += (predicted == batch_labels).sum().item()
+            train_total += batch_labels.size(0)
 
             #agrege
             predicted = torch.argmax(proba, dim=1)
@@ -137,17 +146,23 @@ def train():
 
         # TODO Calcula el costo promedio
         train_loss = train_loss / len(train_loader)
-        train_accuracy = correct / total * 100  
         val_loss, val_accuracy = validation_step(val_loader, modelo, criterion)
+        modelo.train()
+        scheduler.step(val_loss)
+        current_lr = optimizer.param_groups[0]["lr"]
         tqdm.write(
-            f"Epoch: {epoch}, train_loss: {train_loss:.2f}, train_acc: {train_accuracy:.2f}% val_loss: {val_loss:.2f}, val_accuracy: {val_accuracy:.2f}%" #agrege
+            f"Epoch: {epoch}, train_loss: {train_loss:.2f}, val_loss: {val_loss:.2f}, val_accuracy: {val_accuracy:.2f}%"
         )
 
-        # TODO guarda el modelo si el costo de validación es menor al mejor costo de validación
+        # Guarda el modelo cuando mejora el accuracy de validacion.
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            modelo.save_model("modelo_1.pt")
+
+        # Early stopping sigue usando val_loss para detectar sobreajuste.
         if val_loss < best_epoch_loss:
             best_epoch_loss = val_loss
             epochs_without_improvement = 0
-            modelo.save_model("modelo_1.pt")
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= patience:
@@ -161,6 +176,7 @@ def train():
                 "train/accuracy": train_accuracy,
                 "val/loss": val_loss,
                 "val/accuracy": val_accuracy,
+                "lr": current_lr,
 
             }
         )

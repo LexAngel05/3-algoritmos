@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 import pathlib
 from torchvision.models import resnet18, ResNet18_Weights
 
@@ -26,49 +25,47 @@ class Network(nn.Module):
 
         # TODO: Calcular dimension de salida
         out_dim = input_dim
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # primera convulucion
+        out_dim = self.calc_out_dim(out_dim, kernel_size=3) # primera convulucion
         out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # segunda convulucion
+        out_dim = self.calc_out_dim(out_dim, kernel_size=3) # segunda convulucion
         out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # tercera convolucion
-        out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim= self.calc_out_dim(out_dim, kernel_size=3, padding=1)
+        out_dim = self.calc_out_dim(out_dim, kernel_size=3) # tercera convoulucion
+        out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling 
+        out_dim = self.calc_out_dim(out_dim, kernel_size=3) #cuarta convulacion
         flatten_dim = 256 * out_dim * out_dim
 
         # TODO: Define las capas de tu red
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(256)
-        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
-        self.bn4 = nn.BatchNorm2d(512)
+        self.conv1 = nn.Conv2d(1,32, kernel_size=3)
+        self.bn1 = nn.BatchNorm2d(32) #agrege normalizacion
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.bn2 = nn.BatchNorm2d(64) #agrege normalizacion
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3)
+        self.bn3 = nn.BatchNorm2d(128) #agrege normalizacion
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3)
+        self.bn4 = nn.BatchNorm2d(256) #agrege normalizacion
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.dropout1 = nn.Dropout(p=0.5)
-        self.dropout2 = nn.Dropout(p=0.4)
-        self.fc1 = nn.Linear(512, 256)
+        self.fc1 = nn.Linear(flatten_dim, 256)
+        self.dropout = nn.Dropout(p=0.5)
         self.fc2 = nn.Linear(256, n_classes)
-        self.to(self.device) 
+        self.to(self.device)
 
-    def calc_out_dim(self, in_dim, kernel_size, stride=1, padding=0):
-        out_dim = math.floor((in_dim - kernel_size + 2 * padding) / stride) + 1
-        return out_dim
+    def conv_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO: Define la propagacion hacia adelante de tu red
         x = x.to(self.device)
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = self.pool(F.relu(self.bn4(self.conv4(x))))
-        x = self.gap(x)
+        x = self.pool(F.relu(self.bn1(self.conv1(x)))) #agrege bn1
+        x = self.pool(F.relu(self.bn2(self.conv2(x)))) #agrege bn2
+        x = self.pool(F.relu(self.bn3(self.conv3(x)))) #agrege bn3
+        x = F.relu(self.bn4(self.conv4(x))) #agrege bn4
         x = x.view(x.size(0), -1)
-        x = self.dropout1(x)          # dropout antes de fc1
-        x = F.relu(self.fc1(x))       # fc1: 512 → 256
-        x = self.dropout2(x)          # dropout antes de fc2
-        logits = self.fc2(x)          # fc2: 256 → 7
+        x = self.dropout(F.relu(self.fc1(x)))
+        logits = self.fc2(x)
         proba = F.softmax(logits, dim=1)
         return logits, proba
 
