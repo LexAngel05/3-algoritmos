@@ -29,10 +29,12 @@ def get_transforms(split, img_size):
             [
                 *common,
                 torchvision.transforms.ColorJitter(
-                    brightness=0.5, contrast=0.4, saturation=0, hue=0
+                    brightness=0.25, contrast=0.25, saturation=0, hue=0
                 ),
                 torchvision.transforms.RandomHorizontalFlip(p=0.5), #agrege voltea la imagen horizontal con 50% de probabilidad
-                torchvision.transforms.RandomRotation(degrees=10), # agrege rota la imagen hasta 10 grados aleatoriamente
+                torchvision.transforms.RandomAffine(
+                    degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)
+                ),
                 torchvision.transforms.Normalize((mean,), (std,)),
             ]
         )

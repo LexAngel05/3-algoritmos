@@ -108,12 +108,18 @@ def train():
 
     # Define el optimizador
     optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=5e-4) #agregue y ajustamos el weightdecay
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.5, patience=2, min_lr=1e-6
+    )
 
     best_epoch_loss = np.inf
-    patience = 15 #agregue la paciencia
+    best_val_accuracy = 0.0
+    patience = 8 #damos espacio al scheduler antes de detener por sobreajuste
     epochs_without_improvement = 0 #agregue 
     for epoch in range(n_epochs):
         train_loss = 0
+        train_correct = 0
+        train_total = 0
         for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch: {epoch}")):
             batch_imgs = batch["transformed"]
             batch_labels = batch["label"]
@@ -128,21 +134,32 @@ def train():
 
             # TODO acumula el costo
             train_loss += loss.item()
+            predicted = torch.argmax(proba, dim=1)
+            train_correct += (predicted == batch_labels).sum().item()
+            train_total += batch_labels.size(0)
 
         # TODO Calcula el costo promedio
         train_loss = train_loss / len(train_loader)
+        train_accuracy = train_correct / train_total * 100
         modelo.eval()
         val_loss, val_accuracy = validation_step(val_loader, modelo, criterion)
         modelo.train()
+        scheduler.step(val_loss)
+        current_lr = optimizer.param_groups[0]["lr"]
         tqdm.write(
-            f"Epoch: {epoch}, train_loss: {train_loss:.2f}, val_loss: {val_loss:.2f}, val_accuracy: {val_accuracy:.2f}%"
+            f"Epoch: {epoch}, train_loss: {train_loss:.2f}, train_accuracy: {train_accuracy:.2f}%, "
+            f"val_loss: {val_loss:.2f}, val_accuracy: {val_accuracy:.2f}%, lr: {current_lr:.1e}"
         )
 
-        # TODO guarda el modelo si el costo de validación es menor al mejor costo de validación
+        # Guarda el modelo cuando mejora el accuracy de validacion.
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            modelo.save_model("modelo_1.pt")
+
+        # Early stopping sigue usando val_loss para detectar sobreajuste.
         if val_loss < best_epoch_loss:
             best_epoch_loss = val_loss
             epochs_without_improvement = 0
-            modelo.save_model("modelo_1.pt")
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= patience:
@@ -153,8 +170,10 @@ def train():
             {
                 "epoch": epoch,
                 "train/loss": train_loss,
+                "train/accuracy": train_accuracy,
                 "val/loss": val_loss,
                 "val/accuracy": val_accuracy,
+                "lr": current_lr,
 
             }
         )
