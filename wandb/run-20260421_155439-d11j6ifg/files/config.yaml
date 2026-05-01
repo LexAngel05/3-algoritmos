@@ -1,0 +1,52 @@
+_wandb:
+    value:
+        cli_version: 0.26.0
+        e:
+            i0u6oafgmbdvwx3935lvluhr4bdbuyph:
+                cpu_count: 14
+                cpu_count_logical: 20
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "1022956138496"
+                        used: "1007477514240"
+                email: angel.amaya@cetys.edu.mx
+                executable: C:\Users\angel\Desktop\3-algoritmos\.venv\Scripts\python.exe
+                git:
+                    commit: 562b09f10369e323420fbe835c5c65aaa37dbf71
+                    remote: https://github.com/LexAngel05/3-algoritmos
+                gpu: NVIDIA GeForce RTX 4050 Laptop GPU
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 2560
+                      memoryTotal: "6439305216"
+                      name: NVIDIA GeForce RTX 4050 Laptop GPU
+                      uuid: GPU-2233c5ff-08e3-fdb1-c7f7-8b87ca3edfa3
+                host: Angel
+                memory:
+                    total: "14710988800"
+                os: Windows-11-10.0.26200-SP0
+                program: <python with no main file>
+                python: CPython 3.13.5
+                root: C:\Users\angel\Desktop\3-algoritmos
+                startedAt: "2026-04-21T22:54:39.346857Z"
+                writerId: i0u6oafgmbdvwx3935lvluhr4bdbuyph
+        m: []
+        python_version: 3.13.5
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 2
+                - 13
+            "4": 3.13.5
+            "5": 0.26.0
+            "8":
+                - 3
+            "12": 0.26.0
+            "13": windows-amd64

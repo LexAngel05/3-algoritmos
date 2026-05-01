@@ -1,0 +1,57 @@
+_wandb:
+    value:
+        cli_version: 0.26.0
+        e:
+            ttnolflldu81k3omvxndit7un37qj1o9:
+                cpu_count: 14
+                cpu_count_logical: 20
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "1022956138496"
+                        used: "942961340416"
+                email: angel.amaya@cetys.edu.mx
+                executable: C:\Users\angel\Desktop\3-algoritmos\.venv\Scripts\python.exe
+                git:
+                    commit: 8efa032942c002909f86f4c804cd6156984f76ab
+                    remote: https://github.com/LexAngel05/3-algoritmos
+                gpu: NVIDIA GeForce RTX 4050 Laptop GPU
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 2560
+                      memoryTotal: "6439305216"
+                      name: NVIDIA GeForce RTX 4050 Laptop GPU
+                      uuid: GPU-2233c5ff-08e3-fdb1-c7f7-8b87ca3edfa3
+                host: Angel
+                memory:
+                    total: "14710988800"
+                os: Windows-11-10.0.26200-SP0
+                program: -m ml26.proyectos.P01_facial_expressions.training
+                python: CPython 3.13.5
+                root: C:\Users\angel\Desktop\3-algoritmos
+                startedAt: "2026-04-27T05:31:27.322858Z"
+                writerId: ttnolflldu81k3omvxndit7un37qj1o9
+        m: []
+        python_version: 3.13.5
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 13
+                - 16
+            "4": 3.13.5
+            "5": 0.26.0
+            "8":
+                - 3
+            "12": 0.26.0
+            "13": windows-amd64
+training:
+    value:
+        batch_size: 256
+        learning_rate: 0.0001
+        n_epochs: 100

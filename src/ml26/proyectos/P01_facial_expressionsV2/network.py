@@ -32,14 +32,21 @@ class Network(nn.Module):
         out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
         out_dim = self.calc_out_dim(out_dim, kernel_size=3) # tercera convoulucion
         out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling 
-        flatten_dim = 128 * out_dim * out_dim
+        out_dim = self.calc_out_dim(out_dim, kernel_size=3) #cuarta convulacion
+        flatten_dim = 256 * out_dim * out_dim
 
         # TODO: Define las capas de tu red
         self.conv1 = nn.Conv2d(1,32, kernel_size=3)
+        self.bn1 = nn.BatchNorm2d(32) #agrege normalizacion
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.bn2 = nn.BatchNorm2d(64) #agrege normalizacion
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3)
+        self.bn3 = nn.BatchNorm2d(128) #agrege normalizacion
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3)
+        self.bn4 = nn.BatchNorm2d(256) #agrege normalizacion
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.fc1 = nn.Linear(flatten_dim, 256)
+        self.dropout = nn.Dropout(p=0.5)
         self.fc2 = nn.Linear(256, n_classes)
         self.to(self.device)
 
@@ -50,11 +57,12 @@ class Network(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO: Define la propagacion hacia adelante de tu red
         x = x.to(self.device)
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
+        x = self.pool(F.relu(self.bn1(self.conv1(x)))) #agrege bn1
+        x = self.pool(F.relu(self.bn2(self.conv2(x)))) #agrege bn2
+        x = self.pool(F.relu(self.bn3(self.conv3(x)))) #agrege bn3
+        x = F.relu(self.bn4(self.conv4(x))) #agrege bn4
         x = x.view(x.size(0), -1)
-        x = F.relu(self.fc1(x))
+        x = self.dropout(F.relu(self.fc1(x)))
         logits = self.fc2(x)
         proba = F.softmax(logits, dim=1)
         return logits, proba
