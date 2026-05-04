@@ -86,7 +86,6 @@ class Network(nn.Module):
         return logits, proba
 
     def predict(self, x):
-        self.eval()
         with torch.inference_mode():
             return self.forward(x)
 

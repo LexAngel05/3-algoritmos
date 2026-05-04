@@ -18,10 +18,9 @@ def get_transforms(split, img_size):
     # Agrega algún tipo de data agumentation para el conjunto de entrenamiento
     # https://pytorch.org/vision/stable/transforms.html
     common = [
-        torchvision.transforms.ToPILImage(), 
+        torchvision.transforms.ToTensor(),
         torchvision.transforms.Grayscale(),
         torchvision.transforms.Resize((img_size, img_size)),
-        torchvision.transforms.ToTensor(), 
     ]
 
     mean, std = 0.5, 0.5
