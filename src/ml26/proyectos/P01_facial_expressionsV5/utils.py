@@ -30,13 +30,13 @@ def get_transforms(split, img_size):
         transforms = torchvision.transforms.Compose(
             [
                 *common,
-                torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4),
-                torchvision.transforms.RandomHorizontalFlip(p=0.5),
-                torchvision.transforms.RandomRotation(degrees=12),
-                torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-                torchvision.transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 0.8)),
-                torchvision.transforms.Normalize((mean,), (std,)),
-                torchvision.transforms.RandomErasing(p=0.35, scale=(0.02, 0.12)),
+                torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4), #cambia el brillo y contraste aletorio
+                torchvision.transforms.RandomHorizontalFlip(p=0.5), #voltea la iamgen horizontal con una probabilidad
+                torchvision.transforms.RandomRotation(degrees=12), #rota la imagen hasta 12 grados
+                torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)), #traslada y escala ligeramente
+                torchvision.transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 0.8)), #aplica un deseonfoque suave
+                torchvision.transforms.Normalize((mean,), (std,)), #normaliza los valores
+                torchvision.transforms.RandomErasing(p=0.35, scale=(0.02, 0.12)), #borra una region aleatoria de la imagen
             ]
         )
         #ya no

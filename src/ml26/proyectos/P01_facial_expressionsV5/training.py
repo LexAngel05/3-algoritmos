@@ -48,18 +48,18 @@ def validation_step(val_loader, net, cost_function):
     total = 0 
     #recorre todas la imagenes de validacion en grupos, cada grupo(batch) tiene imagenes tranformadas y sus etiquetas reales
     for i, batch in enumerate(val_loader, 0):
-        batch_imgs = batch["transformed"]
-        batch_labels = batch["label"]
+        batch_imgs = batch["transformed"] #imagenes transformaddas
+        batch_labels = batch["label"] #etiqueta real
         device = net.device
         batch_labels = batch_labels.to(device)
-        with torch.inference_mode(): #corre las imagenes por la red (manda las imagenes por el forward[la red] y obtiene las prediciones)
+        with torch.inference_mode(): #corre las imagenes por la red (manda las imagenes por el forward y obtiene las prediciones)
             # TODO: realiza un forward pass, calcula el loss y acumula el costo
             logits, proba = net(batch_imgs.to(net.device)) #manda el batch de imagenes por la red y obtiene el logits y proba
             loss = cost_function(logits, batch_labels.long()) #compara lo real con lo que predijo y calcula que tan equivocado estuvo
             val_loss += loss.item() #acumula el loss de cada batch, el .item convierte el tensor en un numero para que lo pueda sumar
             predicted = torch.argmax(proba, dim=1) #agarra el de la probabilidad mas alta, esa es la emocion que predijo el modelo
             correct += (predicted == batch_labels).sum().item() #compara cada prediccion con la etiqueta real y cuenta cuantas fueron correctas
-            total += batch_labels.size(0) #calcula las imagenes que se precesaron para el acurracy
+            total += batch_labels.size(0) #calcula las imagenes que se procesaron para el acurracy
     # TODO: Regresa el costo promedio por minibatch
     accuracy = correct / total * 100
     return val_loss / len(val_loader), accuracy 
@@ -90,44 +90,58 @@ def train():
     early_stopping_patience = train_cfg.get("early_stopping_patience") #agrege
 
     # Train, validation, test loaders
-    train_dataset, train_loader = get_loader(
-        "train", batch_size=batch_size, shuffle=True
+    #carga las imagenes de entrenamiento y lo organiza en batches de 32
+    train_dataset, train_loader = get_loader( #devuelve traindata (todas las imagenes de entrenamiento) y trainloader las mismas imagenes en batches de 32
+        "train", batch_size=batch_size, shuffle=True #shuffle para que el modelo no aprenda el orden
     )
-    val_dataset, val_loader = get_loader("val", batch_size=batch_size, shuffle=False)
+    val_dataset, val_loader = get_loader("val", batch_size=batch_size, shuffle=False) #lo mismo y el shuffle no importa aqui porque nos importa solo que prediga
     print(
-        f"Cargando datasets --> entrenamiento: {len(train_dataset)}, validacion: {len(val_dataset)}"
+        f"Cargando datasets --> entrenamiento: {len(train_dataset)}, validacion: {len(val_dataset)}" #imprime cuantas imagenes hay en cada conjunto
     )
 
     # Instanciamos tu red
-    modelo = Network(input_dim=48, n_classes=7)
+    modelo = Network(input_dim=48, n_classes=7) #crea la red con imagenes de 48x48 y las 7 clases
 
     #aqui lo agregue para calcular class weights para balancear el dataset
     import pandas as pd
     import json as _json
-    _df = pd.read_csv(train_dataset.root / "data" / "train.csv")
-    _split_ids = _json.load(open(train_dataset.root / "data" / "split.json"))["train"]
-    _df = _df.iloc[_split_ids]
-    _counts = _df["emotion"].value_counts().sort_index().values
-    _weights = 1.0 / _counts
-    _weights = _weights / _weights.sum() * len(_counts)
-    class_weights = torch.tensor(_weights, dtype=torch.float).to(modelo.device)
+    _df = pd.read_csv(train_dataset.root / "data" / "train.csv") #lee el archivo con las imagenes
+    _split_ids = _json.load(open(train_dataset.root / "data" / "split.json"))["train"] #carga split que tiene los indices de las imagenes y agarra las de entrenamiento
+    _df = _df.iloc[_split_ids] #filtra el csv para tener solo entrenamiento 
+    _counts = _df["emotion"].value_counts().sort_index().values #cuentas cuantas imagenes hay de cada emocions
+    _weights = 1.0 / _counts # calcula el peso de cada emocion mientras menos imagenes mayor pesos
+    _weights = _weights / _weights.sum() * len(_counts) #normaliza los pesos para que sumen 7
+    class_weights = torch.tensor(_weights, dtype=torch.float).to(modelo.device) #convierte los pesos a un tensor de pytorch y lo manda al gpu
 
 
     # TODO: Define la funcion de costo
     criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
+    #cross compara lo que predijo el modelo con la etiqueta real y devuelve un numero que indica que tan equivocado estuvo
+    #weight le pasa los pesos que calculamos antes para que las clases con menos imagenes tengan mas importancia
+    #label nos funciona para en vez de decir al modelo que su respuesta esta correcta, le dice cuanto porcentaje es segura
 
     # Define el optimizador
+    #Adam es el algortimo que actualiza los pesos despues de cada batch
+    #parameters que son los pesos de la red
+    #lr que tan grande son los pasos
+    #weight es lo que usamos para penalizar pesos muy grandes
     optimizer = torch.optim.Adam(modelo.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    #este es el monitorea el val loss y si ve que no se mueve reduce el LR
+    #mode busca que el val loss sea lo mas bajo
+    #factor multiplica el lr por 0.3 cuando no mejora
+    #patience espera los 5 epochs para reducir
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=scheduler_factor, patience=scheduler_patience)
-    patience = early_stopping_patience
+    patience = early_stopping_patience #guarda el valor 25 para usarla en el early stopping
 
-    best_epoch_loss = np.inf
-    epochs_without_improvement = 0 #agregue 
-    for epoch in range(n_epochs):
-        modelo.train() #agrege
+    #loop de entrenamiento 
+    best_epoch_loss = np.inf #guarda el mejor val loss
+    epochs_without_improvement = 0 #guarda cuantos epochs lleva sin mejorar
+    for epoch in range(n_epochs): #epoch repite el loop hasta 150
+        modelo.train() #activa el dropout y batch norm
         train_loss = 0
         correct = 0
         total = 0
+        #recorre todos los batches de entrenamiento, tqdm muestra la barra de progreso
         for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch: {epoch}")):
             batch_imgs = batch["transformed"]
             batch_labels = batch["label"]
