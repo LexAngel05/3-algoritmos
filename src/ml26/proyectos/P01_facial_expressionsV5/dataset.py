@@ -41,7 +41,9 @@ def get_loader(split, batch_size, shuffle=True, num_workers=0):
         - batch_size (int): batch size
         - split (str): split to load (train, test or val)
     """
+    # Crea el dataset con la parte que pidamos: train, val o test.
     dataset = FER2013(root=file_path, split=split)
+    # DataLoader agrupa las imagenes en batches para entrenar mas rapido.
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
@@ -71,29 +73,37 @@ class FER2013(Dataset):
         target_transform: Optional[Callable] = None,
     ) -> None:
         super().__init__()
+        # FER2013 usa imagenes pequenas de 48x48 pixeles en escala de grises.
         self.img_size = 48
         self.target_transform = target_transform
+        # split indica si vamos a cargar entrenamiento, validacion o prueba.
         self.split = split
         self.root = root
         self.unnormalize = None
+        # Aqui se preparan las transformaciones de imagen segun el split.
         self.transform, self.unnormalize = get_transforms(
             split=self.split, img_size=self.img_size
         )
 
+        # Lee el CSV y convierte la columna "pixels" en arreglos numericos.
         df = self._read_data()
         _str_to_array = [
             np.fromstring(val, dtype=int, sep=" ") for val in df["pixels"].values
         ]
 
+        # Guarda todas las imagenes como vectores y sus etiquetas como numeros.
         self._samples = np.array(_str_to_array)
         if split == "test":
+            # En test no siempre vienen etiquetas, por eso se deja vacio.
             self._labels = np.empty(shape=len(self._samples))
         else:
             self._labels = df["emotion"].values
 
     def _read_data(self):
+        # Los CSV del dataset deben estar dentro de la carpeta data.
         base_folder = pathlib.Path(self.root) / "data"
 
+        # Para train y val se usa train.csv; para test se usa test.csv.
         _split = "train" if self.split == "train" or "val" else "test"
         file_name = f"{_split}.csv"
         data_file = base_folder / file_name
@@ -105,8 +115,10 @@ class FER2013(Dataset):
                 f"https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge"
             )
 
+        # Carga el CSV con pandas para poder separar filas y columnas.
         df = pd.read_csv(data_file)
         if self.split != "test":
+            # split.json guarda que filas se usan para train y cuales para val.
             train_val_split = json.load(open(base_folder / "split.json", "r"))
             split_samples = train_val_split[self.split]
             df = df.iloc[split_samples]
@@ -116,21 +128,26 @@ class FER2013(Dataset):
         return len(self._samples)
 
     def __getitem__(self, idx):
+        # Toma una imagen por indice.
         _vector_img = self._samples[idx]
 
         # Pre procesamiento de la imagen
+        # Convierte el vector de 2304 pixeles en una imagen 48x48.
         sample_image = _vector_img.reshape(self.img_size, self.img_size).astype("uint8")
         if self.transform is not None:
+            # Aplica normalizacion y data augmentation si corresponde.
             image = self.transform(sample_image)  # float32
         else:
             image = torch.from_numpy(sample_image)  # uint8
 
         # Pre procesamiento de la etiqueta
         target = self._labels[idx]
+        # Convierte la etiqueta numerica al nombre de la emocion.
         emotion = EMOTIONS_MAP[target]
         if self.target_transform is not None:
             target = self.target_transform(target)
 
+        # Regresa todo lo necesario para entrenamiento y visualizacion.
         return {
             "transformed": image,
             "label": target,
@@ -142,6 +159,7 @@ class FER2013(Dataset):
 def main():
     # Visualizar de una en una imagen
     split = "train"
+    # Carga imagenes una por una para revisar visualmente el dataset.
     dataset, dataloader = get_loader(split=split, batch_size=1, shuffle=False)
     print(f"Loading {split} set with {len(dataloader)} samples")
     for datapoint in dataloader:
@@ -153,6 +171,7 @@ def main():
         # Si se aplico alguna normalizacion, deshacerla para visualizacion
         if dataset.unnormalize is not None:
             # Espera un tensor
+            # Desnormaliza para que la imagen se vea bien en pantalla.
             transformed = dataset.unnormalize(transformed)
 
         # Transformar a numpy
