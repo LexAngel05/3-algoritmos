@@ -19,54 +19,43 @@ def build_backbone(model="resnet18", weights="imagenet", freeze=True, last_n_lay
         raise Exception(f"Model {model} not supported")
 
 
-class Network(nn.Module):
+class Network(nn.Module): #hereda nn.module para las redes 
     def __init__(self, input_dim: int, n_classes: int) -> None:
         super().__init__()
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu" #detecta si hay GPU
 
-        # TODO: Calcular dimension de salida
-        out_dim = input_dim
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # primera convulucion
-        out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # segunda convulucion
-        out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim = self.calc_out_dim(out_dim, kernel_size=3, padding=1) # tercera convolucion
-        out_dim = self.calc_out_dim(out_dim, kernel_size=2, stride=2) #maxpooling
-        out_dim= self.calc_out_dim(out_dim, kernel_size=3, padding=1)
-        flatten_dim = 256 * out_dim * out_dim
+        
 
         # TODO: Define las capas de tu red
         #cambie todo esto de nuevo
-        self.conv1a = nn.Conv2d(1, 64, kernel_size=3, padding=1)
-        self.conv1b = nn.Conv2d(64, 64, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(64)
+        #dos convulucionales + batchnorm
+        self.conv1a = nn.Conv2d(1, 64, kernel_size=3, padding=1) #1 canal y produce 64 mapas de caracteristicas
+        self.conv1b = nn.Conv2d(64, 64, kernel_size=3, padding=1) #agarra los 64 y los procesa de nuevo con 64 filtros
+        self.bn1 = nn.BatchNorm2d(64) #normaliza los valores para estabilizar el entrenamiento
 
-        self.conv2a = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.conv2b = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
+        self.conv2a = nn.Conv2d(64, 128, kernel_size=3, padding=1) #64 canales genera 128 filtros
+        self.conv2b = nn.Conv2d(128, 128, kernel_size=3, padding=1) #de los 128 filtros los combina teniendo 128 nuevos
+        self.bn2 = nn.BatchNorm2d(128) #normaliza para que el modelo no le cueste
 
-        self.conv3a = nn.Conv2d(128, 256, kernel_size=3, padding=1)
-        self.conv3b = nn.Conv2d(256, 256, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(256)
+        self.conv3a = nn.Conv2d(128, 256, kernel_size=3, padding=1) #128 canales genera 256 filtros
+        self.conv3b = nn.Conv2d(256, 256, kernel_size=3, padding=1) #de los 256 filtros los combina generando 256 nuevos
+        self.bn3 = nn.BatchNorm2d(256) #normaliza para que sea mas facil para el modelo
 
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2) #reduce el tamaño de la imagen
+        self.gap = nn.AdaptiveAvgPool2d(1) #de los 256x6x6 promedio los valores de cada mapa y hace 256 valores
 
-        self.dropout1 = nn.Dropout(p=0.5)
-        self.fc1 = nn.Linear(256, 128)
-        self.bn_fc = nn.BatchNorm1d(128)
-        self.dropout2 = nn.Dropout(p=0.3)
-        self.fc2 = nn.Linear(128, n_classes)
+        self.dropout1 = nn.Dropout(p=0.5) #apaga el 50% de la neuronas aletorio
+        self.fc1 = nn.Linear(256, 128) #reduce de los 256 los reduce a 128 combinandolos
+        self.bn_fc = nn.BatchNorm1d(128) #normaliza estos 128
+        self.dropout2 = nn.Dropout(p=0.3) #apaga el 30% de las neuronas aleatorio
+        self.fc2 = nn.Linear(128, n_classes) #reduce de los 128 a 7 uno por cada emocion
         self.to(self.device)
 
-    def calc_out_dim(self, in_dim, kernel_size, stride=1, padding=0):
-        out_dim = math.floor((in_dim - kernel_size + 2 * padding) / stride) + 1
-        return out_dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # TODO: Define la propagacion hacia adelante de tu red
         x = x.to(self.device)
-        x = F.relu(self.conv1a(x))
+        x = F.relu(self.conv1a(x)) 
         x = self.pool(F.relu(self.bn1(self.conv1b(x))))
 
         x = F.relu(self.conv2a(x))
@@ -82,9 +71,10 @@ class Network(nn.Module):
         x = F.relu(self.bn_fc(self.fc1(x)))   # 256 -> 128
         x = self.dropout2(x)
         logits = self.fc2(x)                   # 128 -> 7
-        proba = F.softmax(logits, dim=1)
+        proba = F.softmax(logits, dim=1) #que probabilidad hay de cada clase en la imagen
         return logits, proba
 
+    #es para al momento de predecir sea consistente
     def predict(self, x):
         self.eval()
         with torch.inference_mode():
