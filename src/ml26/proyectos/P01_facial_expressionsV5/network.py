@@ -7,7 +7,7 @@ from torchvision.models import resnet18, ResNet18_Weights
 
 file_path = pathlib.Path(__file__).parent.absolute()
 
-
+#modelo
 def build_backbone(model="resnet18", weights="imagenet", freeze=True, last_n_layers=2):
     if model == "resnet18":
         backbone = resnet18(pretrained=weights == "imagenet")
@@ -28,7 +28,7 @@ class Network(nn.Module): #hereda nn.module para las redes
 
         # TODO: Define las capas de tu red
         #cambie todo esto de nuevo
-        #dos convulucionales + batchnorm
+        #dos convulucionales + batchnorm 1x48x48
         self.conv1a = nn.Conv2d(1, 64, kernel_size=3, padding=1) #1 canal y produce 64 mapas de caracteristicas
         self.conv1b = nn.Conv2d(64, 64, kernel_size=3, padding=1) #agarra los 64 y los procesa de nuevo con 64 filtros
         self.bn1 = nn.BatchNorm2d(64) #normaliza los valores para estabilizar el entrenamiento

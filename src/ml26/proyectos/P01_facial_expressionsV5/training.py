@@ -16,16 +16,16 @@ from ml26.proyectos.P01_facial_expressionsV5.network import Network
 import wandb
 from datetime import datetime, timezone
 
-
+#se usa para registrar todo lo que pasa en el entrenamiento
 def init_wandb(cfg):
     # Initialize wandb
     now_utc = datetime.now(timezone.utc)
     timestamp = now_utc.strftime("%Y-%m-%d_%H-%M-%S-%f")
 
     run = wandb.init(
-        project="facial_expressions_cnn",
-        config=cfg,
-        name=f"facial_expressions_cnn_{timestamp}_utc",
+        project="facial_expressions_cnn", #nombre del proyecto
+        config=cfg, #guarda hiperparametros
+        name=f"facial_expressions_cnn_{timestamp}_utc", #nombre unico para el entrenamiento
     )
     return run
 
@@ -41,23 +41,25 @@ def validation_step(val_loader, net, cost_function):
     returns:
     - val_loss (float): el costo total (promedio por minibatch) de todos los datos de validación
     """
-    net.eval() #agrege
+    net.eval() #agrege pone el modelo en modo evaluacion para desactivar dropout y normalizacion
+    #inicializa los contadores
     val_loss = 0.0
     correct = 0
     total = 0 
+    #recorre todas la imagenes de validacion en grupos, cada grupo(batch) tiene imagenes tranformadas y sus etiquetas reales
     for i, batch in enumerate(val_loader, 0):
         batch_imgs = batch["transformed"]
         batch_labels = batch["label"]
         device = net.device
         batch_labels = batch_labels.to(device)
-        with torch.inference_mode():
+        with torch.inference_mode(): #corre las imagenes por la red (manda las imagenes por el forward[la red] y obtiene las prediciones)
             # TODO: realiza un forward pass, calcula el loss y acumula el costo
-            logits, proba = net(batch_imgs.to(net.device))
-            loss = cost_function(logits, batch_labels.long())
-            val_loss += loss.item()
-            predicted = torch.argmax(proba, dim=1)
-            correct += (predicted == batch_labels).sum().item()
-            total += batch_labels.size(0)
+            logits, proba = net(batch_imgs.to(net.device)) #manda el batch de imagenes por la red y obtiene el logits y proba
+            loss = cost_function(logits, batch_labels.long()) #compara lo real con lo que predijo y calcula que tan equivocado estuvo
+            val_loss += loss.item() #acumula el loss de cada batch, el .item convierte el tensor en un numero para que lo pueda sumar
+            predicted = torch.argmax(proba, dim=1) #agarra el de la probabilidad mas alta, esa es la emocion que predijo el modelo
+            correct += (predicted == batch_labels).sum().item() #compara cada prediccion con la etiqueta real y cuenta cuantas fueron correctas
+            total += batch_labels.size(0) #calcula las imagenes que se precesaron para el acurracy
     # TODO: Regresa el costo promedio por minibatch
     accuracy = correct / total * 100
     return val_loss / len(val_loader), accuracy 
@@ -67,13 +69,13 @@ def train():
     # Hyperparametros cambiado y agregados
     cfg = {
         "training": {
-            "learning_rate": 1e-4, #cambio (le subimos el laerning rate para que aprende mas rapido)
-            "n_epochs": 150, #cambio
-            "batch_size": 32,
-            "weight_decay": 3e-4,
-            "scheduler_patience": 5,
-            "scheduler_factor": 0.3,
-            "early_stopping_patience": 25,   
+            "learning_rate": 1e-4, #que tan grandes son los paso al actualizar los pesos muy alto no aprende bien, muy bajo aprende lento
+            "n_epochs": 150, #cuantas veces recorre todo el dataset en entrenamiento
+            "batch_size": 32, #cuantas imagenes procesa a la vez
+            "weight_decay": 3e-4, #penaliza los pesos muy grandes para evitar el overfiting, para que evite memorizar
+            "scheduler_patience": 5, #si despues de 5 epocs el val_loss no mejora reduce el learning rate
+            "scheduler_factor": 0.3, #cuanto se reduce el learningrate learnig rate nuevo = learning rate x 0.3
+            "early_stopping_patience": 25,   #si despues de 25 epochs el val_loss no mejora, detiene el entrenamiento
         },
     }
     run = init_wandb(cfg)
