@@ -31,7 +31,7 @@ class Network(nn.Module): #hereda nn.module para las redes
         #dos convulucionales + batchnorm 1x48x48
         self.conv1a = nn.Conv2d(1, 64, kernel_size=3, padding=1) #1 canal y produce 64 mapas de caracteristicas
         self.conv1b = nn.Conv2d(64, 64, kernel_size=3, padding=1) #agarra los 64 y los procesa de nuevo con 64 filtros
-        self.bn1 = nn.BatchNorm2d(64) #normaliza los valores para estabilizar el entrenamiento
+        self.bn1 = nn.BatchNorm2d(64) #normaliza los valores para estabilizar el entrenamiento  
 
         self.conv2a = nn.Conv2d(64, 128, kernel_size=3, padding=1) #64 canales genera 128 filtros
         self.conv2b = nn.Conv2d(128, 128, kernel_size=3, padding=1) #de los 128 filtros los combina teniendo 128 nuevos
@@ -64,11 +64,11 @@ class Network(nn.Module): #hereda nn.module para las redes
         x = F.relu(self.conv3a(x))
         x = self.pool(F.relu(self.bn3(self.conv3b(x))))
 
-        x = self.gap(x)               
+        x = self.gap(x) #1, 256, 1 ,1              
         x = x.view(x.size(0), -1) 
 
         x = self.dropout1(x)
-        x = F.relu(self.bn_fc(self.fc1(x)))   # 256 -> 128
+        x = F.relu(self.bn_fc(self.fc1(x)))   # 256 -> 128 256,1
         x = self.dropout2(x)
         logits = self.fc2(x)                   # 128 -> 7
         proba = F.softmax(logits, dim=1) #que probabilidad hay de cada clase en la imagen
