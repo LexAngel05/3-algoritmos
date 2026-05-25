@@ -63,7 +63,10 @@ if __name__ == "__main__":
     test_ids = read_csv("customer_purchases_test")["purchase_id"]
     X = read_test_data()
 
-    model_folder = ""
+    # Selecciona automáticamente el modelo xgb más reciente
+    xgb_models = sorted([f for f in os.listdir(MODELS_DIR) if f.startswith("xgb")])
+    model_folder = xgb_models[-1]
+    print(f"Usando modelo: {model_folder}")
     model_name = "model.pkl"
     results = run_inference(model_folder, X, ids=test_ids)
     # Guardar predicciones del modelo

@@ -87,5 +87,26 @@ def run_training(X, y, classifier: str):
 if __name__ == "__main__":
     X, y = read_train_data()
     models = ["logistic", "rf", "xgb"]
+    
+    # Guardar resultados de cada modelo para mostrarlos al final
+    resultados = []
     for model in models:
-        run_training(X, y, model)
+        _, run_dir = run_training(X, y, model)
+        report = json.load(open(run_dir / "classification_report.json"))
+        resultados.append({
+            "modelo": model,
+            "accuracy": round(report["accuracy"], 4),
+            "f1": round(report["1"]["f1-score"], 4),
+            "precision": round(report["1"]["precision"], 4),
+            "recall": round(report["1"]["recall"], 4),
+        })
+
+    # Resumen final
+    print("\n" + "="*50)
+    print("RESUMEN DE RESULTADOS")
+    print("="*50)
+    print(f"{'Modelo':<15} {'Accuracy':<12} {'F1':<10} {'Precision':<12} {'Recall'}")
+    print("-"*50)
+    for r in resultados:
+        print(f"{r['modelo']:<15} {r['accuracy']:<12} {r['f1']:<10} {r['precision']:<12} {r['recall']}")
+    print("="*50)

@@ -72,13 +72,20 @@ def build_processor(
         processed_array = processed_array.toarray()
 
     num_cols = numeric_features
-    cat_cols = list(
-        preprocessor.named_transformers_["cat"].get_feature_names_out(
-            categorical_features
+    # Si no hay features categóricas, el OneHotEncoder queda vacío y falla al
+    # pedir los nombres de columnas. Este check evita el error devolviendo una
+    # lista vacía cuando no hay nada que encodear.
+    cat_cols = (
+        list(
+            preprocessor.named_transformers_["cat"].get_feature_names_out(
+                categorical_features
+            )
         )
+        if categorical_features
+        else []
     )
     bow_cols = []
-    for col in text_features:
+    for col in count_features:
         vocab = preprocessor.named_transformers_[col].get_feature_names_out()
         bow_cols.extend([f"{col}_bow_{t}" for t in vocab])
 
@@ -138,22 +145,62 @@ def preprocess(df: pd.DataFrame, training: bool = False) -> pd.DataFrame:
     #   df["item_release_month_cos"] = np.cos(2 * np.pi * df["item_release_month"] / 12)
     #
     # Match entre categoría del ítem y top categorías del cliente:
-    #   for i in range(1, 4):
-    #       df[f"customer_top_{i}_match"] = (
-    #           df[f"customer_top_{i}_cat"] == df["item_category"]
-    #       ).astype(int)
+    for i in range(1, 4):
+        df[f"customer_top_{i}_match"] = (
+            df[f"customer_top_{i}_cat"] == df["item_category"]
+        ).astype(int)
+
+    # Ratio entre precio del producto y precio promedio del cliente
+    # Si el producto es mucho más caro de lo que suele gastar, menos probable que compre
+    df["price_ratio"] = df["item_price"] / (df["customer_avg_price"] + 1)
+
+    # Días hasta el lanzamiento del producto (negativo = ya lanzado en test)
+    df["item_days_to_launch"] = (
+        df["item_release_date"] - pd.to_datetime(DATA_COLLECTED_AT)
+    ).dt.days
+
+    #esta comentado toda esta secion por posible data leakage
+    # Si el precio del producto nuevo está fuera del rango que suele gastar el cliente
+    #df["price_in_range"] = (
+       # (df["item_price"] >= df["customer_min_price"]) & 
+      #  (df["item_price"] <= df["customer_max_price"])
+   # ).astype(int)
 
     # ── Definicion de grupos de features ───────────────────────────────────
     # Agrega aquí las columnas que quieras escalar con StandardScaler
+    # Features numéricas — se escalan con StandardScaler para que todas estén en la misma escala
+    # Agregue las features de cliente que calculé en customer.py basándome en el análisis exploratorio
     numeric_features = [
-        "customer_age_years",  # ejemplo: edad del cliente
-        # "customer_tenure_months",
-        # "item_days_since_release",
+        "customer_age_years", #edad del cliente
+        "customer_tenure_months", #cuanto tiempo lleva siendo cliente
+        "customer_avg_price", # precio promedio que compra
+        "customer_total_spend", # gasto total hisotrico
+        "customer_std_price", #que tan variable es sus gasto
+        "customer_num_purchases", #cuantas compras tiene en el hisotrial
+        "customer_n_categories", #cuantas categorias distintas ha comprado
+        "customer_avg_views",  # cuantas veces ve un producto antes de comprar
+        "customer_top_1_match",  # 1 si el producto es de su categoría favorita
+        "customer_top_2_match",  # 1 si es de su segunda categoría favorita
+        "customer_top_3_match",  # 1 si es de su tercera categoría 
+        "item_price",           # precio del producto nuevo
+        "price_ratio",          # qué tan caro es vs lo que suele gastar el cliente
+        "item_days_to_launch",  # días hasta el lanzamiento
+
+        #estan comentados porque creo que hay data leakage
+        #"customer_max_price",   # precio máximo que ha pagado
+        #"customer_min_price",   # precio mínimo que ha pagado
+        #"price_in_range",  # 1 si el precio está dentro del rango del cliente
     ]
 
     # Agrega aquí columnas categóricas para OneHotEncoder
+    # incluyo dispositivos, genero y las 3 categorias favoritas del cliente
     categorical_features = [
-        # "customer_prefered_device",
+        "customer_preferred_device", #desktop o  mobile
+        "customer_gender", # male, famale, uknown
+        "customer_top_1_cat", #categoria mas comprada
+        "customer_top_2_cat", #segunda categoria fav
+        "customer_top_3_cat", # tercera categoria fav
+        "item_category",  # categoría del producto nuevo
     ]
 
     # Agrega aquí columnas para CountVectorizer

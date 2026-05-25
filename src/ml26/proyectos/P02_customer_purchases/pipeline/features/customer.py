@@ -54,6 +54,39 @@ def extract_customer_features(train_df: pd.DataFrame) -> pd.DataFrame:
     ).dt.days // 30
 
     # ── TODO: agrega aquí tus propias features ─────────────────────────────
+    # Precio promedio y gasto total por cliente
+    customer_avg_price = group["item_price"].mean()
+    customer_total_spend = group["item_price"].sum()
+    customer_std_price = group["item_price"].std().fillna(0)
+
+    # Precio máximo y mínimo que ha pagado el cliente
+    customer_max_price = group["item_price"].max()
+    customer_min_price = group["item_price"].min()
+
+    # Numero de compras en el historial
+    customer_num_purchases = group["purchase_id"].count()
+
+    # Cuantas categorías distintas ha comprado
+    customer_n_categories = group["item_category"].nunique()
+    
+    # Top 3 categorias más compradas
+    def top_cat(x, n):
+        counts = x.value_counts()
+        return counts.index[n] if len(counts) > n else counts.index[0]
+    
+    customer_top_1_cat = group["item_category"].agg(lambda x: top_cat(x, 0))
+    customer_top_2_cat = group["item_category"].agg(lambda x: top_cat(x, 1))
+    customer_top_3_cat = group["item_category"].agg(lambda x: top_cat(x, 2))
+
+    # Dispositivo preferido de compra
+    customer_preferred_device = group["purchase_device"].agg(lambda x: x.mode().iloc[0])
+
+    # Género — rellenar nulos con "unknown"
+    customer_gender = group["customer_gender"].first().fillna("unknown")
+
+    # Promedio de vistas antes de comprar
+    customer_avg_views = group["customer_item_views"].mean()
+
 
     # ── Construir DataFrame final ───────────────────────────────────────────
 
@@ -63,6 +96,19 @@ def extract_customer_features(train_df: pd.DataFrame) -> pd.DataFrame:
             "customer_id": group["customer_id"].first(),
             "customer_age_years": customer_age_years,
             "customer_tenure_months": customer_tenure_months,
+            "customer_avg_price": customer_avg_price,
+            "customer_total_spend": customer_total_spend,
+            "customer_std_price": customer_std_price,
+            "customer_num_purchases": customer_num_purchases,
+            "customer_n_categories": customer_n_categories,
+            "customer_top_1_cat": customer_top_1_cat,
+            "customer_top_2_cat": customer_top_2_cat,
+            "customer_top_3_cat": customer_top_3_cat,
+            "customer_preferred_device": customer_preferred_device,
+            "customer_gender": customer_gender,
+            "customer_avg_views": customer_avg_views,
+            "customer_max_price": customer_max_price,
+            "customer_min_price": customer_min_price,
             # Agrega aquí las features que calculaste arriba, por ejemplo:
             # "customer_avg_price": customer_avg_price,
         },

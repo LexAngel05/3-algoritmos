@@ -42,18 +42,29 @@ class PurchaseModel:
         )
 
     def get_classifier(self, name: str, **args):
-        # Return the sklearn class instance for the classifier to use
+        # Devuelve el clasificador según el nombre recibido
         name = name.lower()
-        pass
+        if name == "logistic":
+            return LogisticRegression(solver=self.solver, max_iter=self.max_iter, random_state=42)
+        elif name == "rf":
+            return RandomForestClassifier(random_state=42)
+        elif name == "xgb":
+            return xgb.XGBClassifier(random_state=42, eval_metric="logloss")
+        else:
+            raise ValueError(f"Clasificador no reconocido: {name}")
 
     def fit(self, X, y):
-        pass
+        # Aplica SMOTE para balancear clases y entrena el modelo
+        X_res, y_res = self.smote.fit_resample(X, y)
+        self.model.fit(X_res, y_res)
 
     def predict(self, X):
-        pass
+        # Predice la clase (0 o 1) para cada fila
+        return self.model.predict(X)
 
     def predict_proba(self, X):
-        pass
+        # Predice la probabilidad de compra para cada fila
+        return self.model.predict_proba(X)
 
     def get_config(self):
         return {
