@@ -66,6 +66,7 @@ class PurchaseModel:
         # Predice la probabilidad de compra para cada fila
         return self.model.predict_proba(X)
 
+    #devolvera un diccionario  con la configuracion del modelo
     def get_config(self):
         return {
             "model": self.model_type,
